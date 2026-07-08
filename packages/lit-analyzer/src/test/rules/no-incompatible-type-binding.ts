@@ -217,6 +217,24 @@ tsTest("Property binding: Boolean type expression is not assignable to boolean p
 	hasNoDiagnostics(t, diagnostics);
 });
 
+// Closed string-literal union ("sl-input type" shape): regression coverage for the
+// native-checker path. A member is assignable iff its value is in the union.
+tsTest("Property binding: a value within a closed string-literal union is assignable", t => {
+	const { diagnostics } = getDiagnostics([
+		makeElement({ properties: ['mode = "a" as "a" | "b"'] }),
+		'html`<my-element .mode="${"b" as "a" | "b"}"></my-element>`'
+	]);
+	hasNoDiagnostics(t, diagnostics);
+});
+
+tsTest("Property binding: a value outside a closed string-literal union is not assignable", t => {
+	const { diagnostics } = getDiagnostics([
+		makeElement({ properties: ['mode = "a" as "a" | "b"'] }),
+		'html`<my-element .mode="${"c" as "c"}"></my-element>`'
+	]);
+	hasDiagnostic(t, diagnostics, "no-incompatible-type-binding");
+});
+
 tsTest("Attribute binding: 'ifDefined' directive correctly removes 'undefined' from the type union 1", t => {
 	const { diagnostics } = getDiagnostics('type ifDefined = Function; html`<input maxlength="${ifDefined({} as number | undefined)}" />`');
 	hasNoDiagnostics(t, diagnostics);

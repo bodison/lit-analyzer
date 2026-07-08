@@ -136,6 +136,11 @@ function visitDirectImports(node: Node, context: IVisitDependenciesContext): voi
 
 interface MaybeModernProgram extends tsModule.Program {
 	getModuleResolutionCache?(): tsModule.ModuleResolutionCache | undefined;
+	// `getModeForUsageLocation` is inherited from tsModule.Program. Its signature
+	// differs across TS versions (TS 5.3 added it as 2-arg; TS 6 requires a third
+	// `compilerOptions` argument). We call through a runtime guard + cast so the
+	// build is happy on TS 6 while the runtime path still works against older
+	// consumer-side TypeScript that lacks the method (where the typeof check fails).
 }
 
 /**
@@ -146,27 +151,50 @@ interface MaybeModernProgram extends tsModule.Program {
  */
 function emitDirectModuleImportWithName(moduleSpecifier: string, node: Node, context: IVisitDependenciesContext) {
 	const fromSourceFile = node.getSourceFile();
+	const program = context.program as MaybeModernProgram;
+
+	// Compute the resolution mode for this usage. TypeScript 6 keys its module
+	// resolution cache by mode (ESM vs CJS), so a cache lookup MISSES unless the
+	// correct mode is supplied. Only `program.getModeForUsageLocation` returns the
+	// real mode — the (deprecated) module-level `ts.getModeForUsageLocation` returns
+	// `undefined`. On older TypeScript the program method is absent and `undefined`
+	// is the correct mode-agnostic cache key. Covers both static import/export
+	// declarations and dynamic `import(...)` call expressions.
+	const moduleSpecifierNode: Node | undefined =
+		context.ts.isImportDeclaration(node) || context.ts.isExportDeclaration(node)
+			? node.moduleSpecifier
+			: context.ts.isCallExpression(node)
+			? node.arguments[0]
+			: undefined;
+	let mode: tsModule.ResolutionMode = undefined;
+	if (moduleSpecifierNode != null && context.ts.isStringLiteralLike(moduleSpecifierNode)) {
+		// TS 6 made `compilerOptions` a required third argument; TS 5.3-5.x ignored it.
+		// Passing it unconditionally is safe across versions; cast-through-any keeps the
+		// call type-clean against whichever signature is in scope at build time.
+		const compilerOptions = program.getCompilerOptions();
+		if (typeof program.getModeForUsageLocation === "function") {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			mode = (program.getModeForUsageLocation as any)(fromSourceFile, moduleSpecifierNode, compilerOptions);
+		} else if (typeof context.ts.getModeForUsageLocation === "function") {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			mode = (context.ts.getModeForUsageLocation as any)(fromSourceFile, moduleSpecifierNode, compilerOptions);
+		}
+	}
 
 	// Resolve the imported string
 	let result: tsModule.ResolvedModuleWithFailedLookupLocations | undefined;
 
 	if (context.project && "getResolvedModuleWithFailedLookupLocationsFromCache" in context.project) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		result = (context.project as any).getResolvedModuleWithFailedLookupLocationsFromCache(moduleSpecifier, fromSourceFile.fileName);
+		result = (context.project as any).getResolvedModuleWithFailedLookupLocationsFromCache(moduleSpecifier, fromSourceFile.fileName, mode);
 	} else if ("getResolvedModuleWithFailedLookupLocationsFromCache" in context.program) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		result = (context.program as any)["getResolvedModuleWithFailedLookupLocationsFromCache"](moduleSpecifier, fromSourceFile.fileName);
+		result = (context.program as any)["getResolvedModuleWithFailedLookupLocationsFromCache"](moduleSpecifier, fromSourceFile.fileName, mode);
 	} else {
-		const cache = (context.program as MaybeModernProgram).getModuleResolutionCache?.();
-		let mode: tsModule.ModuleKind.CommonJS | tsModule.ModuleKind.ESNext | undefined = undefined;
-		if (context.ts.isImportDeclaration(node) || context.ts.isExportDeclaration(node)) {
-			if (node.moduleSpecifier != null && context.ts.isStringLiteral(node.moduleSpecifier) && context.ts.isSourceFile(node.parent)) {
-				mode = tsModule.getModeForUsageLocation(fromSourceFile, node.moduleSpecifier);
-			}
-		}
+		const cache = program.getModuleResolutionCache?.();
 
 		if (cache != null) {
-			result = context.ts.resolveModuleNameFromCache(moduleSpecifier, node.getSourceFile().fileName, cache, mode);
+			result = context.ts.resolveModuleNameFromCache(moduleSpecifier, fromSourceFile.fileName, cache, mode);
 		}
 		if (result == null) {
 			// Result could not be found from the cache, try and resolve module without using the

@@ -13,9 +13,18 @@ import { HtmlNodeAttrKind } from "../../../analyze/types/html-node/html-node-att
 import { RuleModuleContext } from "../../../analyze/types/rule/rule-module-context.js";
 import { getDirective } from "../directive/get-directive.js";
 
-const cache = new WeakMap<HtmlNodeAttrAssignment, { typeA: SimpleType; typeB: SimpleType }>();
+const cache = new WeakMap<HtmlNodeAttrAssignment, ExtractedBindingTypes>();
 
-export function extractBindingTypes(assignment: HtmlNodeAttrAssignment, context: RuleModuleContext): { typeA: SimpleType; typeB: SimpleType } {
+export interface ExtractedBindingTypes {
+	typeA: SimpleType;
+	typeB: SimpleType;
+	// The raw target/source types (ts.Type when available, before SimpleType
+	// conversion) so callers can compare with the native TS checker instead.
+	rawTypeA: SimpleType | Type | undefined;
+	rawTypeB: SimpleType | Type | undefined;
+}
+
+export function extractBindingTypes(assignment: HtmlNodeAttrAssignment, context: RuleModuleContext): ExtractedBindingTypes {
 	if (cache.has(assignment)) {
 		return cache.get(assignment)!;
 	}
@@ -33,7 +42,26 @@ export function extractBindingTypes(assignment: HtmlNodeAttrAssignment, context:
 
 	// Convert typeB to SimpleType
 	let typeB = (() => {
-		const type = isSimpleType(typeBInferred) ? typeBInferred : toSimpleType(typeBInferred, checker);
+		if (isSimpleType(typeBInferred)) {
+			return shouldRelaxTypeB ? relaxType(typeBInferred) : typeBInferred;
+		}
+		let type: SimpleType;
+		try {
+			type = toSimpleType(typeBInferred, checker);
+		} catch (e) {
+			// Converting a deeply recursive / self-referential ts.Type can overflow
+			// the stack inside ts-simple-type's lazy resolver. Degrade THIS binding's
+			// SimpleType to ANY instead of crashing the whole run. The fallback is
+			// scoped to this assignment (cached in the WeakMap below) and is never
+			// written into ts-simple-type's shared cache, so unrelated types are
+			// unaffected. The raw ts.Type is still kept on `rawTypeB` for the
+			// native-checker path.
+			if (e instanceof RangeError || e instanceof TypeError) {
+				type = { kind: "ANY" };
+			} else {
+				throw e;
+			}
+		}
 		return shouldRelaxTypeB ? relaxType(type) : type;
 	})();
 
@@ -43,15 +71,23 @@ export function extractBindingTypes(assignment: HtmlNodeAttrAssignment, context:
 
 	const typeA = htmlAttrTarget == null ? ({ kind: "ANY" } as SimpleType) : htmlAttrTarget.getType();
 
+	// Keep the raw types (ts.Type when available) so the assignability helpers can
+	// compare with the native TS checker and skip the SimpleType-based comparison.
+	const rawTypeA: SimpleType | Type | undefined = htmlAttrTarget?.declaration?.type?.();
+	let rawTypeB: SimpleType | Type | undefined = typeBInferred;
+
 	// Handle directives
 	const directive = getDirective(assignment, context);
 	const directiveType = directive?.actualType?.();
 	if (directiveType != null) {
 		typeB = directiveType;
+		// typeB now comes from the directive, so the raw expression type no longer
+		// describes the value flowing into the binding — drop it.
+		rawTypeB = undefined;
 	}
 
 	// Cache the result
-	const result = { typeA, typeB };
+	const result: ExtractedBindingTypes = { typeA, typeB, rawTypeA, rawTypeB };
 	cache.set(assignment, result);
 
 	return result;
