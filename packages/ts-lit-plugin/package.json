@@ -57,11 +57,16 @@
 		"lit-analyzer": "^2.0.1",
 		"web-component-analyzer": "^2.0.0"
 	},
+	"overrides": {
+		"web-component-analyzer": {
+			"typescript": "$typescript"
+		}
+	},
 	"devDependencies": {
 		"@types/node": "^14.0.13",
 		"esbuild": "^0.14.34",
 		"rimraf": "^3.0.2",
-		"typescript": "~5.2.2",
+		"typescript": "~6.0.3",
 		"wireit": "^0.1.1"
 	},
 	"contributors": [
