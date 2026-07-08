@@ -1,4 +1,4 @@
-<!-- ⚠️ This README has been generated from the file(s) "readme.blueprint.md" ⚠️--><h1 align="center">lit-analyzer</h1>
+<!-- ⚠️ This README has been generated from the file(s) "readme.blueprint.md" ⚠️--><h1 align="center">@bodison/lit-analyzer</h1>
 <p align="center">
   <b>CLI that type checks bindings in lit-html templates</b></br>
   <sub><sub>
@@ -7,10 +7,10 @@
 <br />
 
 <p align="center">
-		<a href="https://npmcharts.com/compare/lit-analyzer?minimal=true"><img alt="Downloads per month" src="https://img.shields.io/npm/dm/lit-analyzer.svg" height="20"/></a>
-<a href="https://www.npmjs.com/package/lit-analyzer"><img alt="NPM Version" src="https://img.shields.io/npm/v/lit-analyzer.svg" height="20"/></a>
-<a href="https://david-dm.org/runem/lit-analyzer"><img alt="Dependencies" src="https://img.shields.io/david/runem/lit-analyzer.svg" height="20"/></a>
-<a href="https://github.com/runem/lit-analyzer/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/runem/lit-analyzer.svg" height="20"/></a>
+		<a href="https://npmcharts.com/compare/@bodison/lit-analyzer?minimal=true"><img alt="Downloads per month" src="https://img.shields.io/npm/dm/@bodison/lit-analyzer.svg" height="20"/></a>
+<a href="https://www.npmjs.com/package/@bodison/lit-analyzer"><img alt="NPM Version" src="https://img.shields.io/npm/v/@bodison/lit-analyzer.svg" height="20"/></a>
+<a href="https://david-dm.org/bodison/lit-analyzer"><img alt="Dependencies" src="https://img.shields.io/david/bodison/lit-analyzer.svg" height="20"/></a>
+<a href="https://github.com/bodison/lit-analyzer/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/bodison/lit-analyzer.svg" height="20"/></a>
 	</p>
 
 [![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png)](#installation)
@@ -19,7 +19,7 @@
 
 <!-- prettier-ignore -->
 ```bash
-npm install lit-analyzer -g
+npm install @bodison/lit-analyzer -g
 ```
 
 **Note:**

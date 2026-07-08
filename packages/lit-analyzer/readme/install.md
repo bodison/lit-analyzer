@@ -2,7 +2,7 @@
 
 <!-- prettier-ignore -->
 ```bash
-npm install lit-analyzer -g
+npm install @bodison/lit-analyzer -g
 ```
 
 **Note:**

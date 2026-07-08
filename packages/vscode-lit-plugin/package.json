@@ -20,7 +20,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/runem/lit-analyzer.git"
+		"url": "https://github.com/bodison/lit-analyzer.git"
 	},
 	"main": "bundle.js",
 	"scripts": {
@@ -131,7 +131,7 @@
 			],
 			"output": [
 				"built/bundle.js",
-				"built/node_modules/ts-lit-plugin/index.js"
+				"built/node_modules/@bodison/ts-lit-plugin/index.js"
 			]
 		},
 		"make-built-dir": {
@@ -152,8 +152,8 @@
 			"output": [
 				"built/docs",
 				"built/node_modules/typescript",
-				"built/node_modules/ts-lit-plugin/package.json",
-				"built/node_modules/ts-lit-plugin/index.js",
+				"built/node_modules/@bodison/ts-lit-plugin/package.json",
+				"built/node_modules/@bodison/ts-lit-plugin/index.js",
 				"built/schemas",
 				"built/syntaxes",
 				"built/LICENSE.md",
@@ -171,7 +171,7 @@
 		"@types/node": "^14.0.13",
 		"@types/vscode": "^1.30.0",
 		"esbuild": "^0.14.36",
-		"lit-analyzer": "^2.0.3",
+		"lit-analyzer": "npm:@bodison/lit-analyzer@^2.0.3",
 		"mocha": "^9.1.4",
 		"vsce": "^2.7.0",
 		"wireit": "^0.1.1"
@@ -750,7 +750,7 @@
 		],
 		"typescriptServerPlugins": [
 			{
-				"name": "ts-lit-plugin",
+				"name": "@bodison/ts-lit-plugin",
 				"enableForWorkspaceTypeScriptVersions": true
 			}
 		],

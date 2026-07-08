@@ -1,12 +1,15 @@
 {
-	"name": "ts-lit-plugin",
+	"name": "@bodison/ts-lit-plugin",
 	"version": "2.0.2",
 	"description": "Typescript plugin that adds type checking and code completion to lit-html",
 	"author": "runem",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/runem/lit-analyzer.git"
+		"url": "https://github.com/bodison/lit-analyzer.git"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"keywords": [
 		"lit-html",
@@ -54,7 +57,7 @@
 		"/html-documentation/"
 	],
 	"dependencies": {
-		"lit-analyzer": "^2.0.1",
+		"lit-analyzer": "npm:@bodison/lit-analyzer@^2.0.1",
 		"web-component-analyzer": "^2.0.0"
 	},
 	"overrides": {
