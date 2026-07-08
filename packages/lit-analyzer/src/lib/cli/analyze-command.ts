@@ -4,6 +4,7 @@ import { Program, SourceFile } from "typescript";
 import { DefaultLitAnalyzerContext } from "../analyze/default-lit-analyzer-context.js";
 import { LitAnalyzer } from "../analyze/lit-analyzer.js";
 import { LitAnalyzerConfig, makeConfig } from "../analyze/lit-analyzer-config.js";
+import { LitDiagnostic } from "../analyze/types/lit-diagnostic.js";
 import { analyzeGlobs } from "./analyze-globs.js";
 import { readLitAnalyzerConfigFromTsConfig } from "./compile.js";
 import { CodeDiagnosticFormatter } from "./format/code-diagnostic-formatter.js";
@@ -65,6 +66,10 @@ export async function analyzeCommand(globs: string[], cliConfig: LitAnalyzerCliC
 
 	const stats: AnalysisStats = { errors: 0, warnings: 0, filesWithProblems: 0, totalFiles: 0, diagnostics: 0 };
 
+	// Files where analysis threw. A crash must never read as a clean pass: these
+	// force a non-zero exit, but we keep going so one bad file can't truncate the run.
+	const crashedFiles: string[] = [];
+
 	const formatter = getFormatter(cliConfig.format || "code");
 
 	const timeMap = new Map<string, number>();
@@ -95,8 +100,19 @@ export async function analyzeCommand(globs: string[], cliConfig: LitAnalyzerCliC
 
 			const timeStart = Date.now();
 
-			// Get all diagnostics in the source file (errors and warnings)
-			let diagnostics = analyzer.getDiagnosticsInFile(file);
+			// Get all diagnostics in the source file (errors and warnings).
+			// Guard each file: if analysis throws (e.g. a recursive-type stack
+			// overflow deep in type resolution), record it and move on instead of
+			// letting the whole run abort or — worse — exit 0.
+			let diagnostics: LitDiagnostic[];
+			try {
+				diagnostics = analyzer.getDiagnosticsInFile(file);
+			} catch (e) {
+				crashedFiles.push(file.fileName);
+				// eslint-disable-next-line no-console
+				console.error(`lit-analyzer crashed while analyzing ${file.fileName}:`, e instanceof Error && e.stack ? e.stack : e);
+				return;
+			}
 
 			const time = Date.now() - timeStart;
 			timeMap.set(file.fileName, time);
@@ -141,8 +157,18 @@ export async function analyzeCommand(globs: string[], cliConfig: LitAnalyzerCliC
 		console.log(sortedTimeArray.map(([fileName, time]) => `${fileName}: ${time}ms`).join("\n"));
 	}
 
-	// Return if this command was successful or not
-	return isSuccessful(stats, cliConfig);
+	// Report any files that crashed during analysis (forces a non-zero exit below).
+	if (crashedFiles.length > 0) {
+		// eslint-disable-next-line no-console
+		console.error(
+			`\n${chalk.red(`  ✖ lit-analyzer crashed while analyzing ${crashedFiles.length} file${crashedFiles.length === 1 ? "" : "s"}:`)}\n${crashedFiles
+				.map(f => `    - ${f}`)
+				.join("\n")}`
+		);
+	}
+
+	// Return if this command was successful or not. A crash never counts as success.
+	return isSuccessful(stats, cliConfig) && crashedFiles.length === 0;
 }
 
 function getFormatter(format: FormatterFormat): DiagnosticFormatter {
